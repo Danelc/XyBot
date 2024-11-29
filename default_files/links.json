@@ -1,0 +1,8 @@
+{
+    "123456789987654321": {
+        "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "start": 0,
+        "end": 60000,
+        "comment": "id of a discord user with a start and end times for the song that playes when they leave"
+    }
+}

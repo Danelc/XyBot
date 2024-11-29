@@ -1,0 +1,10 @@
+feedparser==6.0.11
+mafic==2.10.0
+nextcord==2.6.0
+python-dotenv==1.0.1
+pytz==2023.3.post1
+quickchart-io==2.0.0
+Requests==2.32.3
+audioop-lts; python_version>='3.13'
+setuptools==75.5.0
+nyaapy==0.7

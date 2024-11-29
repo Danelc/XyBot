@@ -1,0 +1,14 @@
+{
+  "anime": [
+    {
+      "title": "boku no pico",
+      "episode": 69
+    }
+  ],
+  "tv": [
+    {
+      "title": "rick and morty",
+      "episode": "10"
+    }
+  ]
+}

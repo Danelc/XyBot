@@ -1,0 +1,11 @@
+{
+  "default wheel": {
+    "options": "option1|1, option2|2, option3|4, option4|3",
+    "episodes": [
+      1,
+      5,
+      1,
+      3
+    ]
+  }
+}

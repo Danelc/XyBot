@@ -1,0 +1,12 @@
+[
+  {
+    "type": "birthday",
+    "title": "<@123456789987654321>",
+    "time": 3132000000,
+    "desc": "default's Birthday horray",
+    "mention": [
+      123456789987654321
+    ],
+    "snooze": "none"
+  }
+]
