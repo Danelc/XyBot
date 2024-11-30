@@ -3,7 +3,7 @@ from nextcord import Interaction,SlashOption,Embed,ButtonStyle,ui
 from datetime import datetime
 
 import nyaapy.anime_site as Nyaa
-
+from Functions.LogsJson import logger
 #region views
 class NyaaSearchView(ui.View):
     def __init__(self, query, resolution="1080p", sort="seeders"):
@@ -52,6 +52,7 @@ async def nyaa(inter: Interaction, query: str,resolution: str = SlashOption(
     sort = "id" if sort == "date" else sort
     try:
         results = nyaa.search(query+f" [{resolution}]",category=1,subcategory=2,sort=sort)
+        logger.info(f"Nyaa serch was used with: {query} at {resolution} with {sort} as a sort.")
         if sort == "seeders":
             results.sort(key=lambda result: int(result.seeders), reverse=True)
         if not results:

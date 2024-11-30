@@ -6,7 +6,7 @@ from nextcord import Interaction,embeds,ui,TextInputStyle,SelectOption,Color
 from quickchart import QuickChart
 
 from Functions.Search import NyaaSearchView
-from Functions.LogsJson import json_read,json_write
+from Functions.LogsJson import json_read,json_write,logger
 
 MAXSTRINGLEN = 12
 #regioon views
@@ -98,7 +98,7 @@ class StringInputModal(ui.Modal):
         # Write updated data to file
         try:
             json_write(self.data, self.file_path)
-
+            logger.info(f"wheel was edited with options: {updated_options} and episodes: {updated_episodes}")
             await interaction.response.send_message(
                 f"Successfully {'updated' if self.selected_type != 'Add New Wheel' else 'added'} wheel '{wheel_name}'", 
                 ephemeral=True
@@ -142,9 +142,11 @@ class StringInputView(ui.View):
 
             if self.edit:
                 modal = StringInputModal(selected_type, self.data, self.file_path)
+                logger.info(f"roullete wheel: {selected_type} was chosen to edit.")
                 await interaction.response.send_modal(modal)
             else:
                 # Handle roulette logic in a more controlled way
+                logger.info(f"roullete wheel: {selected_type} was chosen to run.")
                 await self.handle_roulette(interaction, selected_type)
                 
         except Exception as e:
@@ -227,7 +229,7 @@ async def roulette(interaction: Interaction, choices: str):
                 match = re.search(r'\(episode (\d+)\)', opt[choosen].lower())
                 epi = str(match.group(1)).zfill(2) if match else ""
                 view = NyaaSearchView(congratz.split(' (')[0]+f" {epi}",sort="seeders")
-                
+            logger.info(f"ran roulette with options: {choices}, and {congratz} was chosen.")
             message = await interaction.send(f"Ccongraawrasffisakgfjpgasdtulations! The Chosen option is:",
                                                     embed=embed,view=view)
             view.message = message

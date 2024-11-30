@@ -4,7 +4,7 @@ from nextcord import Interaction,SelectOption,ui,ButtonStyle,embeds
 import feedparser,typing,requests,json,pytz
 from datetime import datetime,timedelta
 
-from Functions.LogsJson import json_read,json_write
+from Functions.LogsJson import json_read,json_write,logger
 
 MAXELEMENTINPAGE = 25
 
@@ -48,6 +48,7 @@ class FeedDropdown(ui.Select):
             
             if found:
                 await interaction.response.send_message(f"Removed {entry} from the Anime feed successfully")
+                logger.info(f"Removed {entry} from the anime feed")
             else:
                 await interaction.response.send_message(f"Could not find {entry} in the Anime feed.")
         
@@ -57,6 +58,7 @@ class FeedDropdown(ui.Select):
                 data["anime"] = anime_feed
                 json_write(data, "Data")
                 await interaction.response.send_message(f"Added {entry} to the Anime feed successfully")
+                logger.info(f"Added {entry} to the anime feed")
             else:
                 await interaction.response.send_message(f"{entry} is already in the Anime feed.")
         
@@ -191,6 +193,7 @@ async def feed_update():
             list_links.append(
                 f"**{i + 1}.** [{t['title']}]({t['link']}) {mentions}"
             )
+        logger.info(f"new anime RSS release: {list_links}")
         return embeds.Embed(title="A new Anime episode has been released!", description="\n".join(list_links))
 
 
@@ -239,6 +242,7 @@ async def tv_update():
             list_links.append(
                 f"**{i + 1}.** [{t['title']}]({t['link']}) {mentions}"
             )
+        logger.info(f"new TV RSS release: {list_links}")
         return embeds.Embed(title="A new TV episode has been released!", description="\n".join(list_links))
     
 def magnet_short(magnet_url:str):
@@ -258,6 +262,7 @@ def magnet_short(magnet_url:str):
     if "magnetEntries" in responseJson:
         links = responseJson["magnetEntries"]
         if links:
+            logger.info(f"Shortened a magnet link(10 max daily)")
             return links[0]
     else:
         return responseJson["message"]

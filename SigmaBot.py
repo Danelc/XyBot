@@ -1,9 +1,8 @@
 
-import logging.handlers
+import logging,logging.handlers
 import json,typing
 
 import traceback
-import logging 
 from os import getenv
 import os
 from typing import Any
@@ -23,6 +22,8 @@ nextcord_logger = logging.getLogger("nextcord")
 nextcord_logger.setLevel(logging.INFO)
 mafic_logger = logging.getLogger("mafic")
 mafic_logger.setLevel(logging.INFO)
+
+
 
 dotenv_path = find_dotenv()
 if not dotenv_path:
@@ -193,7 +194,7 @@ async def hour_loop():
     embed = await Feeds.tv_update()
     if embed:
         await bot.get_channel(tv_channel_id).send(embed=embed)
-    logging.info(f"Feeds checked.")
+    logger.info(f"Feeds checked.")
 
 #endregion
 

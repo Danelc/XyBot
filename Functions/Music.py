@@ -4,7 +4,7 @@ from nextcord.abc import Connectable
 import random
 from mafic import Player,Playlist, Track
 
-from Functions.LogsJson import json_read,json_write
+from Functions.LogsJson import json_read,json_write,logger
 #region types
 
 class QueuedTrack:
@@ -23,6 +23,7 @@ class MyPlayer(Player):
     async def set_volume(self, volume: float):
         self.volume = max(0, min(200, volume))
         await super().set_volume(self.volume)
+        logger.info(f"volume set to: {self.volume}")
 
     def enqueue_track(self, track: Track, start_time: int = 0, end_time: int = 0, volume: int=None):
         queued_track = QueuedTrack(track, start_time, end_time, self.volume if volume == None else volume)
@@ -334,6 +335,7 @@ async def skip(inter: Interaction):
         await inter.send(f"Skipped! Nothing more to play, goodbye")
     # Skip the current track
     await player.stop()
+    logger.info("skipped track.")
 
 async def queue(inter: Interaction):
     """Get a list of the current queue"""
@@ -398,10 +400,12 @@ async def direct_play(
     if player.current:
         player.enqueue_track(track,start_ms,end_ms)
         response += f"Added to queue: [{track.title}]({track.uri}) (Length: {length_format(track.length)})"
+        logger.info(f"Directly added to queue: [{track.title}]({track.uri})")
     else:
         await player.play(track,start_time=start_ms,end_time=end_ms,volume=player.volume)
         await inter.guild.change_voice_state(channel=inter.user.voice.channel,self_mute=False, self_deaf=True)
         response += f"Now playing: [{track.title}]({track.uri}) (Length: {length_format(track.length)})"
+        logger.info(f"Now directly playing: [{track.title}]({track.uri})")
         await bot.change_presence(activity=Activity(type=ActivityType.listening, name=track.title))
 
     if start_ms and start_ms > 0:
@@ -485,6 +489,7 @@ async def play(interaction: Interaction, *, query: str,bot):
             player.queue.extend(QueuedTrack(t) for t in results[1:])
         
         response = f"Added {len(results)} tracks to the queue from {plist.name}! For a total of {length_format(totalms)}\n"
+        logger.info(f"Added playlist {plist.name}")
         selected_track = results[0]
     else:  # Play a specific track
         selected_track = results[view.value - 1]
@@ -492,9 +497,11 @@ async def play(interaction: Interaction, *, query: str,bot):
     if player.current:
         player.enqueue_track(selected_track)
         response += f"Added to queue: [{selected_track.title}]({selected_track.uri}) (Length: {length_format(selected_track.length)})"
+        logger.info(f"enqued [{selected_track.title}]({selected_track.uri})")
     else:
         await player.play(selected_track)
         response += f"Now playing: [{selected_track.title}]({selected_track.uri}) (Length: {length_format(selected_track.length)})"
+        logger.info(f"Now playing: [{selected_track.title}]({selected_track.uri})")
         await bot.change_presence(activity=Activity(type=ActivityType.listening, name=selected_track.title))
 
     await interaction.followup.send(response)
@@ -513,6 +520,7 @@ async def now_playing(inter: Interaction):
 
     view = NowPlayingView(player)
     await view.update_embed(inter)
+    logger.info("Opened now playing view")
 
 #endregion
 

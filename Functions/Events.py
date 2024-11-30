@@ -4,14 +4,14 @@ from nextcord import Interaction,Embed,Color
 
 from datetime import datetime
 
-from Functions.LogsJson import json_read,json_write
+from Functions.LogsJson import json_read,json_write,logger
 
 
 async def event_loop(bot,channel:int):
     while True:
         next_sec= next_event_delta()
         days, hours = convert_seconds(next_sec)
-        print(f"Next event in {next_sec} seconds ({days} days and {hours} hours)")
+        logger.info(f"Next event in {next_sec} seconds ({days} days and {hours} hours)")
         await asyncio.sleep(next_sec)
         embed = await event_update()
         if embed:
@@ -81,6 +81,7 @@ async def event_update() -> Embed | None:
                 f"{mentions}"
             )
             birthday_messages.append(birthday_message)
+            logger.info(f"Birhtday message created for: {birthday['title']}")
 
         description = "\n\n".join(birthday_messages)
         return Embed(title="🎂 Birthday Celebration! 🎉", description=description)
