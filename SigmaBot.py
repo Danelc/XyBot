@@ -180,7 +180,7 @@ async def glazer(interaction: nextcord.Interaction, year: str = None):
 #region feed
 
 @bot.slash_command(name="feed", description="Manage the anime release feed.", dm_permission=False)
-async def feed(inter: Interaction[Bot], action: typing.Literal['Show', 'Add', 'Remove', 'Update'] = "Show"):
+async def feed(inter: Interaction[Bot], action: typing.Literal['Show', 'Add', 'Remove', 'Un/Subscribe', 'Update'] = "Show"):
     """Manage the anime release feed."""
     await Feeds.feed(inter,action)
     

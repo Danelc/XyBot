@@ -24,6 +24,7 @@ class FeedDropdown(ui.Select):
     async def callback(self, interaction: Interaction):
         data = json_read("Data")
         anime_feed = data.get("anime", [])
+        tv_feed = data.get("tv", [])
         entry = self.values[0]
 
         # Disable the dropdown and buttons        
@@ -35,7 +36,30 @@ class FeedDropdown(ui.Select):
         
         # Update the interaction's response with the disabled dropdown and buttons
         await self.inter.edit_original_message(view=self.view)
-        
+
+        if self.action == "Subscribe":
+            for thing in anime_feed + tv_feed:
+                if entry.lower() == thing.get("title"):
+                    # Ensure `mentions` key exists and is a list
+                    mentions = thing.setdefault("mentions", [])
+                    user_id = interaction.user.id
+                    nickname = interaction.user.display_name
+
+                    if user_id in mentions:
+                        # Unsubscribe
+                        mentions.remove(user_id)
+                        json_write(data, "Data")
+                        await interaction.response.send_message(f"{nickname} has unsubscribed from updates for **{entry.title()}**.")
+                        logger.info(f"{user_id} ({nickname}) unsubscribed from {entry}.")
+                    else:
+                        # Subscribe
+                        mentions.append(user_id)
+                        json_write(data, "Data")
+                        await interaction.response.send_message(f"{nickname} has subscribed to updates for **{entry.title()}**.")
+                        logger.info(f"{user_id} ({nickname}) subscribed to {entry}.")
+                    break
+            else:
+                await interaction.response.send_message(f"Could not find {entry} in the feed.")
         if self.action == "Remove":
             found = False
             for thing in anime_feed:
@@ -108,7 +132,7 @@ class FeedView(ui.View):
 
 #region commands
 
-async def feed(inter: Interaction, action: typing.Literal['Show', 'Add', 'Remove', 'Update'] = "Show"):
+async def feed(inter: Interaction, action: typing.Literal['Show', 'Add', 'Remove', 'Un/Subscirbe', 'Update'] = "Show"):
     """Manage the anime release feed."""
     if action.lower() == "show":
         data = json_read("Data")
@@ -123,14 +147,24 @@ async def feed(inter: Interaction, action: typing.Literal['Show', 'Add', 'Remove
     
     elif action.lower() == "add":
         rss_feed = feedparser.parse("https://subsplease.org/rss/?t&r=1080").entries
+        data = json_read("Data")
+        anime_titles = {item["title"] for item in data.get("anime", [])}
+        
+        # Filter out titles already in the JSON file
         unique_titles = sorted(set(
             entry.get("title").split(" - ")[0].lower()
             .replace("[subsplease]", "")
             .strip()
             for entry in rss_feed
-        ))
+        ) - anime_titles)
+
         options = [SelectOption(label=title.title(), value=title) for title in unique_titles]
-        await inter.send("Select an anime series to add:", view=FeedView("Add", inter, options),ephemeral=True)
+        
+        if not options:
+            await inter.send("No new anime series available to add.")
+        else:
+            await inter.send("Select an anime series to add:", view=FeedView("Add", inter, options), ephemeral=True)
+
 
     elif action.lower() == "remove":
         data = json_read("Data")
@@ -145,8 +179,26 @@ async def feed(inter: Interaction, action: typing.Literal['Show', 'Add', 'Remove
         embed = await feed_update() or embeds.Embed(title="Nothing new, sowwy.")
         await inter.send(embed=embed)
 
+    elif action.lower() == "un/subscribe":
+        data = json_read("Data")
+        anime_feed = data.get("anime", [])
+        tv_feed = data.get("tv", [])
+        
+        options = []
+        user_id = inter.user.id
+
+        for item in anime_feed + tv_feed:
+            title = item["title"].title()
+            mentions = item.get("mentions", [])
+            label = f"{title} (Subscribed)" if user_id in mentions else title
+            options.append(SelectOption(label=label, value=item["title"]))
+
+        if not options:
+            await inter.send("There are no entries available to subscribe to.")
+        else:
+            await inter.send("Select an entry to subscribe/unsubscribe:", view=FeedView("Subscribe", inter, options), ephemeral=True)
     else:
-        await inter.send("Invalid action! Use Show, Add, Remove, or Update.")
+        await inter.send("Invalid action! Use Show, Add, Remove, Update, or Subscribe.")
 
 #region functions
 
