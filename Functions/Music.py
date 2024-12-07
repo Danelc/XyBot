@@ -400,12 +400,12 @@ async def direct_play(
     if player.current:
         player.enqueue_track(track,start_ms,end_ms)
         response += f"Added to queue: [{track.title}]({track.uri}) (Length: {length_format(track.length)})"
-        logger.info(f"Directly added to queue: [{track.title}]({track.uri})")
+        logger.info(f"Directly added to queue: {track.uri}")
     else:
         await player.play(track,start_time=start_ms,end_time=end_ms,volume=player.volume)
         await inter.guild.change_voice_state(channel=inter.user.voice.channel,self_mute=False, self_deaf=True)
         response += f"Now playing: [{track.title}]({track.uri}) (Length: {length_format(track.length)})"
-        logger.info(f"Now directly playing: [{track.title}]({track.uri})")
+        logger.info(f"Now directly playing: {track.uri}")
         await bot.change_presence(activity=Activity(type=ActivityType.listening, name=track.title))
 
     if start_ms and start_ms > 0:
@@ -497,11 +497,11 @@ async def play(interaction: Interaction, *, query: str,bot):
     if player.current:
         player.enqueue_track(selected_track)
         response += f"Added to queue: [{selected_track.title}]({selected_track.uri}) (Length: {length_format(selected_track.length)})"
-        logger.info(f"enqued [{selected_track.title}]({selected_track.uri})")
+        logger.info(f"enqued {selected_track.uri}")
     else:
         await player.play(selected_track)
         response += f"Now playing: [{selected_track.title}]({selected_track.uri}) (Length: {length_format(selected_track.length)})"
-        logger.info(f"Now playing: [{selected_track.title}]({selected_track.uri})")
+        logger.info(f"Now playing: {selected_track.uri}")
         await bot.change_presence(activity=Activity(type=ActivityType.listening, name=selected_track.title))
 
     await interaction.followup.send(response)

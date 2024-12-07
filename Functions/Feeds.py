@@ -136,9 +136,24 @@ async def feed(inter: Interaction, action: typing.Literal['Show', 'Add', 'Remove
     """Manage the anime release feed."""
     if action.lower() == "show":
         data = json_read("Data")
-        anime_list = [f"**{i + 1}.** {item['title'].title()} - Episode {item['episode']}" for i, item in enumerate(data.get("anime", []))]
-        tv_list = [f"**{i + 1}.** {item['title'].title()} - Episode {item['episode']}" for i, item in enumerate(data.get("tv", []))]
+        user_id = inter.user.id  # ID of the user running the command
+        anime_feed = data.get("anime", [])
+        tv_feed = data.get("tv", [])
 
+        # Format anime feed with subscribe tags
+        anime_list = [
+            f"**{i + 1}.** {item['title'].title()} - Episode {item['episode']} "
+            + ("(Subscribed)" if user_id in item.get("mentions", []) else "")
+            for i, item in enumerate(anime_feed)
+        ]
+
+        # Format TV feed with subscribe tags
+        tv_list = [
+            f"**{i + 1}.** {item['title'].title()} - Episode {item['episode']} "
+            + ("(Subscribed)" if user_id in item.get("mentions", []) else "")
+            for i, item in enumerate(tv_feed)
+        ]
+        
         anime_section = "**Anime Feed:**\n" + ("\n".join(anime_list) if anime_list else "No entries in the Anime feed.")
         tv_section = "\n\n**TV Feed:**\n" + ("\n".join(tv_list) if tv_list else "No entries in the TV feed.")
 

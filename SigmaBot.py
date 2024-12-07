@@ -1,4 +1,5 @@
 
+import datetime
 import logging,logging.handlers
 import json,typing
 
@@ -63,7 +64,8 @@ class Bot(commands.Bot):
         )
         logger.info("Logged in as "+ bot.user.name)
         logger.info("guilds: "+str(bot.guilds))
-        global leave_users_links
+        global leave_users_links,message
+        message = await bot.get_channel(announcements_channel_id).fetch_message(1314919462306320404)
         leave_users_links = load_leave_users_links()
         if not hour_loop.is_running():
             hour_loop.start()
@@ -194,6 +196,9 @@ async def hour_loop():
     embed = await Feeds.tv_update()
     if embed:
         await bot.get_channel(tv_channel_id).send(embed=embed)
+    global message
+    
+    message = await update_img(announcements_channel_id,message)
     logger.info(f"Feeds checked.")
 
 #endregion
@@ -407,6 +412,18 @@ async def help_command(interaction: nextcord.Interaction):
 
     embed.set_footer(text="Use /<command> to execute a command.")
     await interaction.response.send_message(embed=embed,ephemeral=True)
+
+async def update_img(channel_id:int,message:nextcord.message.Message)->nextcord.message.Message:
+    unique_suffix = f"?t={datetime.datetime.now(datetime.timezone.utc).timestamp()}"
+    updated_image_url1 = "https://www.banskoski.com/ext/webcams/livecam-1.jpg" + unique_suffix
+    updated_image_url2 = "https://www.banskoski.com/ext/webcams/livecam-5.jpg" + unique_suffix
+    try:
+        # await message.edit(content="")
+        await message.edit(content="\n".join([updated_image_url1,updated_image_url2]))
+    except:
+        #  message = await bot.get_channel(channel_id).send("\n".join([updated_image_url1,updated_image_url2]))
+        logger.warning("failed to get message for images!")
+    return message
 
 STATS = """```
 Uptime: {uptime}
