@@ -64,8 +64,8 @@ class Bot(commands.Bot):
         )
         logger.info("Logged in as "+ bot.user.name)
         logger.info("guilds: "+str(bot.guilds))
-        global leave_users_links,message
-        message = await bot.get_channel(announcements_channel_id).fetch_message(1314919462306320404)
+        global leave_users_links#,message
+        #message = await bot.get_channel(announcements_channel_id).fetch_message(1314919462306320404)
         leave_users_links = load_leave_users_links()
         if not hour_loop.is_running():
             hour_loop.start()
@@ -196,9 +196,9 @@ async def hour_loop():
     embed = await Feeds.tv_update()
     if embed:
         await bot.get_channel(tv_channel_id).send(embed=embed)
-    global message
+    # global message
     
-    message = await update_img(announcements_channel_id,message)
+    message_id = await update_img(announcements_channel_id)
     logger.info(f"Feeds checked.")
 
 #endregion
@@ -413,18 +413,39 @@ async def help_command(interaction: nextcord.Interaction):
     embed.set_footer(text="Use /<command> to execute a command.")
     await interaction.response.send_message(embed=embed,ephemeral=True)
 
-async def update_img(channel_id:int,message:nextcord.message.Message)->nextcord.message.Message:
+async def update_img(channel_id:int)->int:
     unique_suffix = f"?t={datetime.datetime.now(datetime.timezone.utc).timestamp()}"
     updated_image_url1 = "https://www.banskoski.com/ext/webcams/livecam-1.jpg" + unique_suffix
     updated_image_url2 = "https://www.banskoski.com/ext/webcams/livecam-5.jpg" + unique_suffix
+    data = json_read("Data")
+    channel = bot.get_channel(channel_id)
+    message_id = data["message_id"]
+    if message_id and await validate_message(channel, message_id) :
+        message = await bot.get_channel(channel_id).fetch_message(message_id)
+    else:
+        # Message doesn't exist or ID is None; create a new message
+        message = await channel.send("\n".join([updated_image_url1,updated_image_url2]))
+        logger.warning("could not find message. sending new message!")
+        # Save the new message ID
+        data["message_id"] = message.id
+        json_write(data)
     try:
-        # await message.edit(content="")
         await message.edit(content="\n".join([updated_image_url1,updated_image_url2]))
     except:
         #  message = await bot.get_channel(channel_id).send("\n".join([updated_image_url1,updated_image_url2]))
         logger.warning("failed to get message for images!")
-    return message
+    return message.id
 
+async def validate_message(channel, message_id):
+    """a check if the message is fetachable"""
+    try:
+        # Try fetching the message by its ID
+        await channel.fetch_message(message_id)
+        return True
+    except nextcord.NotFound:
+        # Message doesn't exist
+        return False
+    
 STATS = """```
 Uptime: {uptime}
 Memory: {used:.0f}MiB : {free:.0f}MiB / {allocated:.0f}MiB -- {reservable:.0f}MiB
