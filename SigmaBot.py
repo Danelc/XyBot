@@ -1,4 +1,5 @@
 
+import asyncio
 import datetime
 import logging,logging.handlers
 import json,typing
@@ -445,6 +446,16 @@ async def validate_message(channel, message_id):
     except nextcord.NotFound:
         # Message doesn't exist
         return False
+    
+@hour_loop.before_loop
+async def before_hour_loop():
+    # Calculate the time until the next whole hour
+    now = datetime.datetime.now()
+    next_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+    wait_time = (next_hour - now).total_seconds()
+
+    logger.info(f"Waiting {wait_time} seconds until the next whole hour.")
+    await asyncio.sleep(wait_time)    
     
 STATS = """```
 Uptime: {uptime}
