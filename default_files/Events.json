@@ -8,5 +8,13 @@
       123456789987654321
     ],
     "snooze": "none"
+  },
+  {
+    "type": "poll_result",
+    "title": "Poll Result Event",
+    "time": 1703611200,
+    "desc": "Event created from poll result.",
+    "mention": [123456789987654321, 248101214141210842],
+    "snooze": "past"
   }
 ]

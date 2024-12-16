@@ -1,10 +1,12 @@
 
+import asyncio
 from nextcord import Interaction,SelectOption,ui,ButtonStyle,embeds
 
 import feedparser,typing,requests,json,pytz
 from datetime import datetime,timedelta
 
 from Functions.LogsJson import json_read,json_write,logger
+from Functions.Schedule import intersect_schedules,schedule_poll
 
 MAXELEMENTINPAGE = 25
 
@@ -132,7 +134,7 @@ class FeedView(ui.View):
 
 #region commands
 
-async def feed(inter: Interaction, action: typing.Literal['Show', 'Add', 'Remove', 'Un/Subscirbe', 'Update'] = "Show"):
+async def feed(inter: Interaction, action: typing.Literal['Show', 'Add', 'Remove', 'Un/Subscirbe', 'Update'] = "Show",channel = None):
     """Manage the anime release feed."""
     if action.lower() == "show":
         data = json_read("Data")
@@ -191,7 +193,7 @@ async def feed(inter: Interaction, action: typing.Literal['Show', 'Add', 'Remove
             await inter.send("Select an Anime series to remove:", view=FeedView("Remove", inter, options),ephemeral=True)
 
     elif action.lower() == "update":
-        embed = await feed_update() or embeds.Embed(title="Nothing new, sowwy.")
+        embed = await feed_update(channel) or embeds.Embed(title="Nothing new, sowwy.")
         await inter.send(embed=embed)
 
     elif action.lower() == "un/subscribe":
@@ -217,7 +219,7 @@ async def feed(inter: Interaction, action: typing.Literal['Show', 'Add', 'Remove
 
 #region functions
 
-async def feed_update():
+async def feed_update(channel):
     rss_feed = feedparser.parse("https://subsplease.org/rss/?t&r=1080").entries
     rss_feed.reverse()
     data = json_read("Data")
@@ -230,7 +232,6 @@ async def feed_update():
             if comp.get("title") in entry.get("title").lower():
                 index = entry.get("title").rfind('- ')
                 rss_episode = "Finished Airing." if index == -1 else entry.get("title")[index + 2:].split(' ')[0]
-                #handle published date
                 pubDate = comp.get("pubDate")
                 if pubDate:
                     pubDate = datetime.strptime(pubDate, "%Y-%m-%dT%H:%M:%S%z")
@@ -243,7 +244,7 @@ async def feed_update():
                     result.append({
                         "title": entry.get("title"),
                         "link": entry.get("link").replace('torrent', 'magnet'),
-                        "mentions": comp.get("mentions", [])  # Include mentions if available
+                        "mentions": comp.get("mentions", [])
                     })
                     comp["episode"] = str(rss_episode)
                     comp["pubDate"] = entry_published_date.isoformat()
@@ -256,16 +257,24 @@ async def feed_update():
         for i, t in enumerate(result):
             mentions = "".join(f"<@{user_id}>" for user_id in t["mentions"])
             if mentions:
-                mentions = "\n"+mentions
+                mentions = "\n" + mentions
             list_links.append(
                 f"**{i + 1}.** [{t['title']}]({t['link']}) {mentions}"
             )
-        logger.info(f"new anime RSS release: {list_links}")
+            # Compute schedule intersection for mentioned users
+            schedule, skipped_users = intersect_schedules(t["mentions"])
+            if skipped_users:
+                logger.info(f"Skipped users for {t['title']}: {skipped_users}")
+
+            # Send poll asynchronously
+            if schedule:
+                asyncio.create_task(schedule_poll(channel, t["title"], t["mentions"], schedule, skipped_users))
+
+        logger.info(f"New anime RSS release: {list_links}")
         return embeds.Embed(title="A new Anime episode has been released!", description="\n".join(list_links))
 
-
     
-async def tv_update():
+async def tv_update(channel):
     rss_feed = feedparser.parse("https://showrss.info/user/278057.rss?magnets=true&namespaces=true&name=clean&quality=fhd&re=null").entries
     data = json_read("Data")
     tv_data = data.get("tv", [])
@@ -309,6 +318,14 @@ async def tv_update():
             list_links.append(
                 f"**{i + 1}.** [{t['title']}]({t['link']}) {mentions}"
             )
+            # Compute schedule intersection for mentioned users
+            schedule, skipped_users = intersect_schedules(t["mentions"])
+            if skipped_users:
+                logger.info(f"Skipped users for {t['title']}: {skipped_users}")
+
+            # Send poll asynchronously
+            if schedule:
+                asyncio.create_task(schedule_poll(channel, t["title"], t["mentions"], schedule, skipped_users))
         logger.info(f"new TV RSS release: {list_links}")
         return embeds.Embed(title="A new TV episode has been released!", description="\n".join(list_links))
     

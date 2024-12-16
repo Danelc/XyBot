@@ -16,7 +16,7 @@ from nextcord import Intents, Interaction,SlashOption,Forbidden
 from nextcord.ext import commands,tasks,application_checks
 from mafic import NodePool, TrackEndEvent
 
-import Functions.Music as Music,Functions.Feeds as Feeds,Functions.Events as Events,Functions.Search as Search,Functions.Roulette as Roulette
+import Functions.Music as Music,Functions.Feeds as Feeds,Functions.Events as Events,Functions.Search as Search,Functions.Roulette as Roulette, Functions.Schedule as Schedule
 from Functions.Music import MyPlayer
 from Functions.LogsJson import json_read,json_write,logger
 
@@ -185,16 +185,16 @@ async def glazer(interaction: nextcord.Interaction, year: str = None):
 @bot.slash_command(name="feed", description="Manage the anime release feed.", dm_permission=False)
 async def feed(inter: Interaction[Bot], action: typing.Literal['Show', 'Add', 'Remove', 'Un/Subscribe', 'Update'] = "Show"):
     """Manage the anime release feed."""
-    await Feeds.feed(inter,action)
+    await Feeds.feed(inter,action,bot.get_channel(weeb_channel_id))
     
     
 @tasks.loop(hours=1)
 async def hour_loop():
     """check both feeds every hour starting from startup"""
-    embed = await Feeds.feed_update()
+    embed = await Feeds.feed_update(bot.get_channel(weeb_channel_id))
     if embed:
         await bot.get_channel(weeb_channel_id).send(embed=embed)
-    embed = await Feeds.tv_update()
+    embed = await Feeds.tv_update(bot.get_channel(tv_channel_id))
     if embed:
         await bot.get_channel(tv_channel_id).send(embed=embed)
     # global message
@@ -259,7 +259,34 @@ async def roulette(interaction: Interaction[Bot], choices: str):
 @is_shadow()
 async def auto_roulette(interaction: Interaction[Bot],edit:bool=False):
     await interaction.send("Please select a wheel to edit:" if edit else "select a roulette wheel:",view=Roulette.StringInputView(edit),ephemeral=False)
-    
+
+@bot.slash_command(name="schedule", description="check and edit your schedule", dm_permission=False)
+@is_shadow()
+async def schedule(interaction: Interaction[Bot], user:nextcord.Member = SlashOption(
+        name="user",
+        description="What user to check the schedule of",
+        required=False,
+        default=None
+        )):
+    data = json_read("Schedule")
+    if user:
+        user_id = user.id 
+    else:
+        user_id = interaction.user.id
+    user_data = data.get(f"{user_id}")#, {day: [False] * 24 for day in Schedule.days})
+    if not user_data:
+        if user_id != interaction.user.id:
+            await interaction.send(f"{user.mention} doesnt have a schedule yet.",ephemeral=True)
+            return
+        else:
+            user_data = {day: [False] * 24 for day in Schedule.days}
+    view = None if user_id != interaction.user.id else Schedule.DaySelectionView(user_id, user_data)
+    table_message = Schedule.DaySelectionView(user_id, user_data).generate_schedule_table()
+    if view:
+        await interaction.send(f"Your schedule:\n{table_message}" if user_id == interaction.user.id else f"{user.mention} schedule:\n{table_message}",view=view ,ephemeral=True)
+    else:
+        await interaction.send(f"Your schedule:\n{table_message}" if user_id == interaction.user.id else f"{user.mention} schedule:\n{table_message}" ,ephemeral=True)
+
 #endregion
 # 
 # region functions    

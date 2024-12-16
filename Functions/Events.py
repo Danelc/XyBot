@@ -48,43 +48,82 @@ async def birthdays(inter: Interaction):
     await inter.response.send_message(embed=embed)
 
 async def event_update() -> Embed | None:
-    event_list = []
     data = json_read("Events")
     current_time = int(time.time())
     current_year = datetime.now().year
+    event_list = []
+    updated_data = []  # To hold events that are still valid
+
     for entry in data:
-        if entry['type'] == 'birthday':
-            entry_time = entry['time']
-            if entry_time <= current_time:
-                event_list.append(entry)
-                
-                # Update the birthday for next year
-                date = datetime.fromtimestamp(entry_time)
+        # Ignore events marked as "past"
+        if entry.get('snooze') == "past":
+            continue
+
+        if entry['time'] <= current_time:
+            # Process current or overdue events
+            event_list.append(entry)
+
+            if entry['type'] == 'birthday':
+                # Update birthday for next year
+                date = datetime.fromtimestamp(entry['time'])
                 try:
                     next_birthday = date.replace(year=datetime.now().year + 1)
                 except ValueError:  # Handle Feb 29 for non-leap years
                     next_birthday = date.replace(year=datetime.now().year + 1, day=28)
-                
                 entry['time'] = int(next_birthday.timestamp())
+                updated_data.append(entry)
 
+            elif entry['type'] == 'poll_result':
+                # Mark poll result as past
+                # entry['snooze'] = "past"
+                # Do not append to updated_data, effectively removing it
+                continue
+
+        else:
+            # Keep future events as-is
+            updated_data.append(entry)
+
+    # Save updated events back to the file
+    json_write(updated_data, "Events")
     if event_list:
-        json_write(data, "Events")
-
-        birthday_messages = []
-        for i, birthday in enumerate(event_list, 1):
-            mentions = ' '.join(f'<@{mention}>' for mention in birthday.get('mention', []))
-            birthday_time = int(datetime.fromtimestamp(birthday['time']).replace(year=current_year).timestamp())
-            birthday_message = (
-                f"**Happy Birthday {birthday['title']}!**\n"
-                f"<t:{birthday_time}:D>\n"
-                f"{bDay_haiku()}\n"
-                f"{mentions}"
-            )
-            birthday_messages.append(birthday_message)
-            logger.info(f"Birhtday message created for: {birthday['title']}")
-
-        description = "\n\n".join(birthday_messages)
-        return Embed(title="🎂 Birthday Celebration! 🎉", description=description)
+        # Separate logic for birthdays and other events
+        birthday_events = [event for event in event_list if event['type'] == 'birthday']
+        other_events = [event for event in event_list if event['type'] != 'birthday']
+        
+        description = ""
+        
+        # Handle birthday events
+        if birthday_events:
+            birthday_messages = []
+            for i, birthday in enumerate(birthday_events, 1):
+                mentions = ' '.join(f'<@{mention}>' for mention in birthday.get('mention', []))
+                birthday_time = int(datetime.fromtimestamp(birthday['time']).replace(year=current_year).timestamp())
+                birthday_message = (
+                    f"**Happy Birthday {birthday['title']}!**\n"
+                    f"<t:{birthday_time}:D>\n"
+                    f"{bDay_haiku()}\n"
+                    f"{mentions}"
+                )
+                birthday_messages.append(birthday_message)
+                logger.info(f"Birthday message created for: {birthday['title']}")
+            
+            description += "🎂 **Birthdays** 🎂\n\n" + "\n\n".join(birthday_messages) + "\n\n"
+        
+        # Handle other events
+        if other_events:
+            for i, event in enumerate(other_events, 1):
+                mentions = ' '.join(f'<@{mention}>' for mention in event.get('mention', []))
+                event_time = int(event['time'])
+                description += (
+                    f"**{i}. {event['title']}**\n"
+                    f"<t:{event_time}:F>\n"
+                    f"{event['desc']}\n"
+                    f"{mentions}\n\n"
+                )
+        
+        if description:
+            logger.info(f"Created event message for: {[e['title'] for e in event_list]}")
+            return Embed(title="📅 Upcoming Events!", description=description.strip(), color=Color.green())
     
     return None
 
@@ -116,7 +155,10 @@ def next_event_delta()->int:
     data = json_read("Events")
     if len(data) == 0:
         return None
-    min_time = data[0]['time']
+    
+    min_time = None
+    current_time = int(time.time())
+
     for entry in data:
         less_time = 0
         match entry['snooze']:
@@ -126,10 +168,10 @@ def next_event_delta()->int:
                 less_time = 86400
             case 'hour':
                 less_time = 3600
-        delta = (entry['time'] - less_time - int(time.time()))
-        if min_time > delta and entry['snooze'] != 'past':
+        delta = (entry['time'] - less_time - current_time)
+        if min_time is None or (min_time > delta and entry['snooze'] != 'past'):
             min_time = delta
-    return min_time
+    return min_time if min_time and min_time > 0 else None
 
 def convert_seconds(seconds):
     days = seconds // 86400  # 1 day = 86400 seconds

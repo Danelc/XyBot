@@ -164,5 +164,6 @@ cython_debug/
 /Data.json
 /roulette_options.json
 /links.json
+/Schedule.json
 Lavalink.jar
 application.yml
