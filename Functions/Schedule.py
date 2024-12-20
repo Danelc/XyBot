@@ -247,7 +247,7 @@ async def schedule_poll(channel, title, mentions, schedule, skipped_users, max_s
         await poll_message.clear_reactions()
     except nextcord.Forbidden:
         # Bot lacks permissions to clear reactions
-        pass
+        logger.error("Bot lacks permissions to clear poll reactions")
 
     
     # Check if all reaction counts are zero (or just 1, which is the bot's own reaction)
@@ -260,13 +260,13 @@ async def schedule_poll(channel, title, mentions, schedule, skipped_users, max_s
         event_time = int(datetime.combine(chosen_slot[0], time(hour=chosen_slot[1])).timestamp())
 
         # Add the event
-        await add_poll_event(
-            title="Poll Result Event",
+        add_poll_event(
+            title=title,
             time=event_time,
-            desc="Event created from poll result.",
-            mentions=[123456789, 987654321]  # Replace with actual mentions or fetched user IDs
+            desc=f"The chosen time to watch this epsiode is:{selected_time}, which is right now!",
+            mentions=mentions 
         )
-        await channel.send(f"✅ **Poll Results for {title}**\nThe most voted time is: {selected_time}.")
+        await channel.send(f"✅ **Poll Results for {title}**\nThe most voted time is: <t:{event_time}:F>.")
 
 def add_poll_event(title: str, time: int, desc: str, mentions: list[int]):
     """Adds a new event to the Events.json file."""
@@ -277,7 +277,7 @@ def add_poll_event(title: str, time: int, desc: str, mentions: list[int]):
         "time": time,
         "desc": desc,
         "mention": mentions,
-        "snooze": "none"
+        "snooze": "actual"
     }
     data.append(new_event)
     json_write(data, "Events")
