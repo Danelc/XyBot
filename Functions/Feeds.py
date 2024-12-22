@@ -267,7 +267,7 @@ async def feed_update(channel):
                 logger.info(f"Skipped users for {t['title']}: {skipped_users}")
 
             # Send poll asynchronously
-            if schedule:
+            if schedule and mentions:
                 asyncio.create_task(schedule_poll(channel, t["title"], t["mentions"], schedule, skipped_users))
 
         logger.info(f"New anime RSS release: {list_links}")
@@ -324,7 +324,7 @@ async def tv_update(channel):
                 logger.info(f"Skipped users for {t['title']}: {skipped_users}")
 
             # Send poll asynchronously
-            if schedule:
+            if schedule and mentions:
                 asyncio.create_task(schedule_poll(channel, t["title"], t["mentions"], schedule, skipped_users))
         logger.info(f"new TV RSS release: {list_links}")
         return embeds.Embed(title="A new TV episode has been released!", description="\n".join(list_links))
