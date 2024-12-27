@@ -343,7 +343,6 @@ async def on_track_end(event: TrackEndEvent):
 @bot.event
 async def on_voice_state_update(member: nextcord.Member, before: nextcord.VoiceState, after: nextcord.VoiceState):
     if member == bot.user and before.channel and not after.channel:
-        # Bot was disconnected from a voice channel
         await bot.change_presence(activity=None)
         if isinstance(before.channel.guild.voice_client, MyPlayer):
             before.channel.guild.voice_client.queue.clear()
@@ -356,11 +355,14 @@ async def on_voice_state_update(member: nextcord.Member, before: nextcord.VoiceS
         # await player.pause()
         # tracks = await player.fetch_tracks("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
         # player.enqueue_track(tracks[0],end_time=60000,volume=50)
-
+        
+        if player.current:
+            logger.info(f"Stopping track cause user returned: {player.current.uri}")
+        else:
+            logger.info("No current track to stop.")
         await player.stop()
 
     def get_track_owner(current_track):
-        """Helper function to find the owner of the current track"""
         if not current_track:
             return None
         for user_id, data in leave_users_links.items():
@@ -368,30 +370,43 @@ async def on_voice_state_update(member: nextcord.Member, before: nextcord.VoiceS
                 return user_id
         return None
 
-    # Handle member joining a channel (including bot)
+    async def should_stop_leave_sound(channel, member_id):
+        if member_id not in leave_users_links:
+            return False
+        return member_id in channel.voice_states
+
+    async def delayed_presence_check(player: MyPlayer, channel, member_id, delay=0.5):
+        """Perform a delayed check to see if user has joined and stop playback if needed"""
+        await asyncio.sleep(delay)
+        if await should_stop_leave_sound(channel, member_id):
+            await stop_and_handle_queue(player)
+
     if after.channel:
         player: MyPlayer = after.channel.guild.voice_client
+        
+        if not player and member == bot.user:
+            for user_id in leave_users_links:
+                if user_id in after.channel.voice_states:
+                    return
+
         if player and player.channel == after.channel:
             current_track = player.current
+            current_track_owner = get_track_owner(current_track)
             
-            if member.id in leave_users_links:
-                # Member joins while their leave sound is playing
-                if current_track and current_track.uri == leave_users_links[member.id]['url']:
-                    await stop_and_handle_queue(player)
-            
-            if member == bot.user:
-                # Bot joins channel where leave sound owner is present
-                current_track_owner = get_track_owner(current_track)
-                if current_track_owner in after.channel.voice_states:
-                    await stop_and_handle_queue(player)
+            if (member.id in leave_users_links and current_track and 
+                current_track.uri == leave_users_links[member.id]['url']) or \
+               (member == bot.user and current_track_owner and 
+                current_track_owner in after.channel.voice_states):
+                await stop_and_handle_queue(player)
     
-    # Handle member leaving a channel (excluding bot)
     if member.id in leave_users_links:
         if before.channel and (not after.channel or after.afk) and len(before.channel.voice_states) > 0:
             member_is_listening = any(vm in leave_users_links and vm != member.id for vm in before.channel.voice_states)
             
             if member_is_listening:
-                # Play leave sound
+                if await should_stop_leave_sound(before.channel, member.id):
+                    return
+                    
                 if not before.channel.guild.voice_client:
                     await before.channel.connect(cls=MyPlayer)
                 
@@ -403,12 +418,17 @@ async def on_voice_state_update(member: nextcord.Member, before: nextcord.VoiceS
                             await before.channel.connect(cls=MyPlayer)
                             player = before.channel.guild.voice_client
                         
+                        if await should_stop_leave_sound(before.channel, member.id):
+                            return
+                            
                         await player.play(
                             tracks[0],
                             start_time=leave_users_links[member.id]["start"],
                             end_time=leave_users_links[member.id]["end"] if leave_users_links[member.id]["end"] != 0 else None
                         )
-
+                        
+                        # Schedule a delayed check
+                        asyncio.create_task(delayed_presence_check(player, before.channel, member.id))
 @bot.event
 async def on_application_command_error(inter: Interaction[Bot], error: Exception):
     if isinstance(error, nextcord.errors.ApplicationCheckFailure):
