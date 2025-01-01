@@ -529,7 +529,8 @@ async def now_playing(inter: Interaction):
 def create_queue_embed(player: MyPlayer) -> nextcord.Embed:
     lis = player.queue
     totalms = sum(qtrack.track.length for qtrack in lis)
-    global leave_users_links
+    from SigmaBot import leave_users_links
+
     
     leave_users_urls = {info["url"] for info in leave_users_links.values()}
     
