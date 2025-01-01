@@ -334,7 +334,7 @@ async def on_track_end(event: TrackEndEvent):
     assert isinstance(event.player, MyPlayer)
     if event.player.queue:
 
-        await event.player.play_next_track()
+        await event.player.play_next_track(bot)
     else:
         await event.player.disconnect()
         await event.player.guild.change_voice_state(channel=None)
