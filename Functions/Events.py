@@ -1,6 +1,6 @@
 import operator,time,random,asyncio
 
-from nextcord import Interaction,Embed,Color
+from nextcord import Interaction,Embed,Color,ui,TextInput
 
 from datetime import datetime
 
@@ -17,36 +17,127 @@ async def event_loop(bot,channel:int):
         if embed:
             await bot.get_channel(channel).send(embed=embed)
 
+
+class BirthdayModal(ui.Modal):
+    def __init__(self, title: str, user_name: str, is_update: bool, previous_date: str = None):
+        self.user_name = user_name
+        self.is_update = is_update
+        modal_title = "Update Birthday" if is_update else "Add Birthday"
+        super().__init__(title=modal_title)
+
+        placeholder = previous_date if is_update else "e.g., 25-12-2000"
+        # Add a text input to accept the new date
+        self.add_item(
+            TextInput(
+                label="Enter your birthday (DD-MM-YYYY):",
+                placeholder=placeholder,
+                required=True
+            )
+        )
+
+    async def callback(self, interaction: Interaction):
+        try:
+            # Get the input and validate the date
+            new_date_str = self.children[0].value
+            new_date = datetime.strptime(new_date_str, "%d-%m-%Y")
+
+            # Convert the date to a UNIX timestamp
+            new_timestamp = int(new_date.timestamp())
+
+            # Fetch and update data
+            data = json_read("Events")
+            if self.is_update:
+                # Update the user's birthday
+                for event in data:
+                    if event['title'] == self.user_name:
+                        event['time'] = new_timestamp
+                        break
+            else:
+                # Add a new birthday
+                data.append({"type": "birthday", "title": self.user_name, "time": new_timestamp})
+
+            json_write("Events", data)
+
+            await interaction.response.send_message(
+                f"Your birthday has been {'updated' if self.is_update else 'added'} to {new_date.strftime('%d-%m-%Y')}!",
+                ephemeral=True
+            )
+        except ValueError:
+            await interaction.response.send_message(
+                "Invalid date format. Please use DD-MM-YYYY.", ephemeral=True
+            )
+
+class BirthdayView(ui.View):
+    def __init__(self, has_birthday: bool, user_name: str, previous_date: str = None):
+        super().__init__()
+        self.has_birthday = has_birthday
+        self.user_name = user_name
+        self.previous_date = previous_date
+
+        # Button label based on whether the user is adding or updating a birthday
+        button_label = "Update Birthday" if has_birthday else "Add Birthday"
+
+        self.add_item(
+            ui.Button(
+                label=button_label,
+                style=3 if has_birthday else 1,  # Green for update, blue for add
+                custom_id="update_or_add_birthday"
+            )
+        )
+
+    @ui.button(label="Dynamic Label", style=3)  # Placeholder button definition
+    async def update_or_add_birthday(self, button: ui.Button, interaction: Interaction):
+        modal = BirthdayModal(
+            title="Birthday Entry",
+            user_name=self.user_name,
+            is_update=self.has_birthday,
+            previous_date=self.previous_date
+        )
+        await interaction.response.send_modal(modal)
+
 async def birthdays(inter: Interaction):
     data = json_read("Events")
+    user_name = inter.user.name
+
+    # Check if the user already has a birthday in the list
+    user_birthday = next((event for event in data if event['title'] == user_name), None)
+    previous_date = None
+
+    if user_birthday:
+        # Format the previous date for the placeholder
+        previous_date = datetime.fromtimestamp(user_birthday['time']).strftime("%d-%m-%Y")
+
     birthday_events = [event for event in data if event['type'] == 'birthday']
-    
-    if not birthday_events:
-        await inter.response.send_message("No birthdays found in the events list.", ephemeral=True)
-        return
 
-    # Convert Unix timestamps to datetime objects and sort
-    birthday_list = []
-    for event in birthday_events:
-        event_date = datetime.fromtimestamp(event['time'])
-        birthday_list.append((event_date, event['title']))
+    # Create the embed for displaying birthdays
+    embed = Embed(title="🎂 Upcoming Birthdays:", color=Color.blue())
 
-    birthday_list.sort(key=operator.itemgetter(0))
+    # Prepare and sort the list of birthdays
+    if birthday_events:
+        birthday_list = [
+            (datetime.fromtimestamp(event['time']), event['title'])
+            for event in birthday_events
+        ]
+        birthday_list.sort(key=operator.itemgetter(0))
 
-    # Create the embed
-    embed = Embed(title="🎂Upcoming Birthdays:", color=Color.blue())
+        description = ""
+        for i, (date, name) in enumerate(birthday_list, start=1):
+            description += (
+                f"**{i}. {name}** - <t:{int(date.timestamp())}:D> "
+                f"(<t:{int(date.timestamp())}:R>)\n\n"
+            )
+        embed.description = description.strip()
+    else:
+        embed.description = "No birthdays found."
 
-    # Create the description
-    description = ""
-    i=1
-    for date, name in birthday_list:
-        description += f"**{i}.{name}** - <t:{int(date.timestamp())}:D> (<t:{int(date.timestamp())}:R>) \n\n"
-        i+=1
+    # Determine the button text and create the view
+    view = BirthdayView(
+        has_birthday=bool(user_birthday),
+        user_name=user_name,
+        previous_date=previous_date
+    )
 
-    embed.description = description.strip()
-
-    await inter.response.send_message(embed=embed)
-
+    await inter.response.send_message(embed=embed, view=view)
 async def event_update() -> Embed | None:
     data = json_read("Events")
     current_time = int(time.time())
