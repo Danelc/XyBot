@@ -26,19 +26,20 @@ class BirthdayModal(ui.Modal):
         super().__init__(title=modal_title)
 
         placeholder = previous_date if is_update else "e.g., 25-12-2000"
-        # Add a text input to accept the new date
-        self.add_item(
-            TextInput(
-                label="Enter your birthday (DD-MM-YYYY):",
-                placeholder=placeholder,
-                required=True
-            )
+        # Create the TextInput with the correct parameter names
+        self.birthday_input = ui.TextInput(
+            custom_id="birthday_input",
+            min_length=10,
+            max_length=10,
+            placeholder=placeholder,
+            required=True
         )
+        self.add_item(self.birthday_input)
 
     async def callback(self, interaction: Interaction):
         try:
             # Get the input and validate the date
-            new_date_str = self.children[0].value
+            new_date_str = self.birthday_input.value
             new_date = datetime.strptime(new_date_str, "%d-%m-%Y")
 
             # Convert the date to a UNIX timestamp
