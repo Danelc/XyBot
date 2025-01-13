@@ -25,13 +25,14 @@ class BirthdayModal(ui.Modal):
         modal_title = "Update Birthday" if is_update else "Add Birthday"
         super().__init__(title=modal_title)
 
-        placeholder = previous_date if is_update else "e.g., 25-12-2000"
-        # Create the TextInput with the required label parameter
+        placeholder = previous_date if is_update else "e.g., 25-12"
+        # Create the TextInput with shorter format
         self.birthday_input = ui.TextInput(
-            label="Enter your birthday (DD-MM-YYYY):",
+            label="Enter your birthday (DD-MM):",
             custom_id="birthday_input",
-            min_length=10,
-            max_length=10,
+            style=TextStyle.short,
+            min_length=5,
+            max_length=5,
             placeholder=placeholder,
             required=True
         )
@@ -40,11 +41,24 @@ class BirthdayModal(ui.Modal):
     async def callback(self, interaction: Interaction):
         try:
             # Get the input and validate the date
-            new_date_str = self.birthday_input.value
-            new_date = datetime.strptime(new_date_str, "%d-%m-%Y")
-
-            # Convert the date to a UNIX timestamp
-            new_timestamp = int(new_date.timestamp())
+            date_str = self.birthday_input.value
+            
+            # Parse just the day and month
+            input_date = datetime.strptime(date_str, "%d-%m")
+            
+            # Get current date
+            current_date = datetime.now()
+            
+            # First try this year
+            this_year = current_date.year
+            future_date = input_date.replace(year=this_year)
+            
+            # If this date has already passed this year, use next year
+            if future_date < current_date:
+                future_date = future_date.replace(year=this_year + 1)
+            
+            # Convert to timestamp
+            new_timestamp = int(future_date.timestamp())
 
             # Fetch and update data
             data = json_read("Events")
@@ -55,18 +69,25 @@ class BirthdayModal(ui.Modal):
                         event['time'] = new_timestamp
                         break
             else:
-                # Add a new birthday
-                data.append({"type": "birthday", "title": self.user_name, "time": new_timestamp})
+                # Add a new birthday with additional fields matching your JSON format
+                data.append({
+                    "type": "birthday",
+                    "title": self.user_name,
+                    "time": new_timestamp,
+                    "desc": f"{self.user_name}'s Birthday",
+                    "mention": [int(self.user_name.strip("<@>"))],  # Extract ID from mention
+                    "snooze": "none"
+                })
 
             json_write("Events", data)
 
             await interaction.response.send_message(
-                f"Your birthday has been {'updated' if self.is_update else 'added'} to {new_date.strftime('%d-%m-%Y')}!",
+                f"Your birthday has been {'updated' if self.is_update else 'added'} to {future_date.strftime('%d-%m-%Y')}!",
                 ephemeral=True
             )
         except ValueError:
             await interaction.response.send_message(
-                "Invalid date format. Please use DD-MM-YYYY.", ephemeral=True
+                "Invalid date format. Please use DD-MM (e.g., 25-12).", ephemeral=True
             )
 
 class BirthdayView(ui.View):
