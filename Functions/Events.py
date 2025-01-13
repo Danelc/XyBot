@@ -1,6 +1,6 @@
 import operator,time,random,asyncio
 
-from nextcord import Interaction,Embed,Color,ui,TextInput
+from nextcord import Interaction,Embed,Color,ui,TextInput,ButtonStyle
 
 from datetime import datetime
 
@@ -81,20 +81,17 @@ class BirthdayView(ui.View):
         self.has_birthday = has_birthday
         self.user_name = user_name
         self.previous_date = previous_date
-
-        # Button label based on whether the user is adding or updating a birthday
-        button_label = "Update Birthday" if has_birthday else "Add Birthday"
-
-        self.add_item(
-            ui.Button(
-            label=button_label,
-            style=3 if has_birthday else 1,  # Green for update, blue for add
-            custom_id="update_or_add_birthday",
-            callback=self.update_or_add_birthday
-            )
+        
+        # Create the button with appropriate label and style
+        self.birthday_button = ui.Button(
+            label="Update Birthday" if has_birthday else "Add Birthday",
+            style=ButtonStyle.green if has_birthday else ButtonStyle.blurple,
+            custom_id="update_or_add_birthday"
         )
+        self.birthday_button.callback = self.update_or_add_birthday
+        self.add_item(self.birthday_button)
 
-    async def update_or_add_birthday(self, button: ui.Button, interaction: Interaction):
+    async def update_or_add_birthday(self, interaction: Interaction):
         modal = BirthdayModal(
             title="Birthday Entry",
             user_name=self.user_name,
@@ -102,7 +99,6 @@ class BirthdayView(ui.View):
             previous_date=self.previous_date
         )
         await interaction.response.send_modal(modal)
-
 
 async def birthdays(inter: Interaction):
     data = json_read("Events")
