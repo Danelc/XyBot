@@ -68,6 +68,14 @@ class BirthdayModal(ui.Modal):
             )
 
 class BirthdayView(ui.View):
+    """
+    A view that presents a button for adding or updating a user's birthday.
+
+    Attributes:
+        has_birthday (bool): Indicates if the user already has a birthday entry.
+        user_name (str): The name of the user.
+        previous_date (str, optional): The previous birthday date if updating.
+    """
     def __init__(self, has_birthday: bool, user_name: str, previous_date: str = None):
         super().__init__()
         self.has_birthday = has_birthday
@@ -79,13 +87,13 @@ class BirthdayView(ui.View):
 
         self.add_item(
             ui.Button(
-                label=button_label,
-                style=3 if has_birthday else 1,  # Green for update, blue for add
-                custom_id="update_or_add_birthday"
+            label=button_label,
+            style=3 if has_birthday else 1,  # Green for update, blue for add
+            custom_id="update_or_add_birthday",
+            callback=self.update_or_add_birthday
             )
         )
 
-    @ui.button(label="Dynamic Label", style=3)  # Placeholder button definition
     async def update_or_add_birthday(self, button: ui.Button, interaction: Interaction):
         modal = BirthdayModal(
             title="Birthday Entry",
@@ -94,6 +102,7 @@ class BirthdayView(ui.View):
             previous_date=self.previous_date
         )
         await interaction.response.send_modal(modal)
+
 
 async def birthdays(inter: Interaction):
     data = json_read("Events")
@@ -137,7 +146,7 @@ async def birthdays(inter: Interaction):
         previous_date=previous_date
     )
 
-    await inter.response.send_message(embed=embed, view=view)
+    await inter.response.send_message(embed=embed, view=view, ephemeral=True)
 async def event_update() -> Embed | None:
     data = json_read("Events")
     current_time = int(time.time())
