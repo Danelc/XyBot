@@ -26,8 +26,9 @@ class BirthdayModal(ui.Modal):
         super().__init__(title=modal_title)
 
         placeholder = previous_date if is_update else "e.g., 25-12-2000"
-        # Create the TextInput with the correct parameter names
+        # Create the TextInput with the required label parameter
         self.birthday_input = ui.TextInput(
+            label="Enter your birthday (DD-MM-YYYY):",
             custom_id="birthday_input",
             min_length=10,
             max_length=10,
@@ -104,9 +105,14 @@ class BirthdayView(ui.View):
 async def birthdays(inter: Interaction):
     data = json_read("Events")
     user_name = inter.user.name
+    user_mention = f"<@{inter.user.id}>"  # Add mention format
 
     # Check if the user already has a birthday in the list
-    user_birthday = next((event for event in data if event['title'] == user_name), None)
+    # Look for both username and mention format
+    user_birthday = next(
+        (event for event in data if event['title'] in [user_name, user_mention]), 
+        None
+    )
     previous_date = None
 
     if user_birthday:
@@ -139,7 +145,7 @@ async def birthdays(inter: Interaction):
     # Determine the button text and create the view
     view = BirthdayView(
         has_birthday=bool(user_birthday),
-        user_name=user_name,
+        user_name=user_mention,  # Use mention format for consistency
         previous_date=previous_date
     )
 
