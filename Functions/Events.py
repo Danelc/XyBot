@@ -19,7 +19,9 @@ async def event_loop(bot,channel:int):
 
 
 class BirthdayModal(ui.Modal):
-    def __init__(self, title: str, user_name: str, is_update: bool, previous_date: str = None):
+    def __init__(self, user_name: str, is_update: bool, previous_date: str = None):
+        if not user_name.startswith("<@") or not user_name.endswith(">"):
+            raise ValueError("Invalid user mention format")
         self.user_name = user_name
         self.is_update = is_update
         modal_title = "Update Birthday" if is_update else "Add Birthday"
@@ -30,7 +32,6 @@ class BirthdayModal(ui.Modal):
         self.birthday_input = ui.TextInput(
             label="Enter your birthday (DD-MM):",
             custom_id="birthday_input",
-            style=TextStyle.short,
             min_length=5,
             max_length=5,
             placeholder=placeholder,
@@ -43,8 +44,14 @@ class BirthdayModal(ui.Modal):
             # Get the input and validate the date
             date_str = self.birthday_input.value
             
-            # Parse just the day and month
-            input_date = datetime.strptime(date_str, "%d-%m")
+            try:
+                # Parse just the day and month
+                input_date = datetime.strptime(date_str, "%d-%m")
+            except ValueError:
+                await interaction.response.send_message(
+                    "Invalid date format. Please use DD-MM (e.g., 25-12).", ephemeral=True
+                )
+                return
             
             # Get current date
             current_date = datetime.now()
@@ -52,9 +59,8 @@ class BirthdayModal(ui.Modal):
             # First try this year
             this_year = current_date.year
             future_date = input_date.replace(year=this_year)
-            
-            # If this date has already passed this year, use next year
-            if future_date < current_date:
+            if future_date.date() < current_date.date():
+            # If this date has already passed this year, use next year     
                 future_date = future_date.replace(year=this_year + 1)
             
             # Convert to timestamp
@@ -75,7 +81,7 @@ class BirthdayModal(ui.Modal):
                     "title": self.user_name,
                     "time": new_timestamp,
                     "desc": f"{self.user_name}'s Birthday",
-                    "mention": [int(self.user_name.strip("<@>"))],  # Extract ID from mention
+                    "mention": [int(self.user_name.strip("<@>"))] if self.user_name.startswith("<@") and self.user_name.endswith(">") else [],  # Validate and extract ID from mention
                     "snooze": "none"
                 })
 
@@ -138,7 +144,7 @@ async def birthdays(inter: Interaction):
 
     if user_birthday:
         # Format the previous date for the placeholder
-        previous_date = datetime.fromtimestamp(user_birthday['time']).strftime("%d-%m-%Y")
+        previous_date = datetime.fromtimestamp(user_birthday['time']).strftime("%d-%m")
 
     birthday_events = [event for event in data if event['type'] == 'birthday']
 
