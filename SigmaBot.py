@@ -46,33 +46,49 @@ except:
 leave_users_links = None
 
 class Bot(commands.Bot):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.ready_ran = False
         self.pool = NodePool(self)
 
+    async def connect_lavalink(self, max_retries=5, delay=10):
+        """Tries to connect to Lavalink with retries."""
+        for attempt in range(1, max_retries + 1):
+            try:
+                await self.pool.create_node(
+                    host="localhost",
+                    port=int(getenv("port")),
+                    label="MAIN",
+                    password=getenv("pass"),
+                )
+                logger.info("Lavalink node connected successfully.")
+                return  # Exit loop on success
+            except Exception as e:
+                logger.error(f"Lavalink connection failed (Attempt {attempt}/{max_retries}): {e}")
+                if attempt < max_retries:
+                    await asyncio.sleep(delay)  # Wait before retrying
+                else:
+                    logger.critical("Max Lavalink connection retries reached. Giving up.")
+
     async def on_ready(self):
         if self.ready_ran:
-            logger.info("ReLogged in as "+ bot.user.name)
+            logger.info("ReLogged in as " + self.user.name)
             return
 
-        await self.pool.create_node(
-            host="localhost",
-            port=int(getenv("port")),
-            label="MAIN",
-            password=getenv("pass"),
-        )
-        logger.info("Logged in as "+ bot.user.name)
-        logger.info("guilds: "+str(bot.guilds))
-        global leave_users_links#,message
-        #message = await bot.get_channel(announcements_channel_id).fetch_message(1314919462306320404)
+        await self.connect_lavalink()
+
+        logger.info("Logged in as " + self.user.name)
+        logger.info("Guilds: " + str(self.guilds))
+
+        global leave_users_links
         leave_users_links = load_leave_users_links()
+
         if not hour_loop.is_running():
             hour_loop.start()
-        bot.loop.create_task(Events.event_loop(bot,announcements_channel_id))
-        self.ready_ran = True
 
+        self.loop.create_task(Events.event_loop(self, announcements_channel_id))
+        self.ready_ran = True
 
 bot = Bot(intents=Intents(guilds=True, voice_states=True))
         
