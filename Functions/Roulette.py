@@ -2,6 +2,7 @@
 import re,json,requests,random,urllib.parse
 
 from nextcord import Interaction,embeds,ui,TextInputStyle,SelectOption,Color
+from nextcord.ui import View
 
 from quickchart import QuickChart
 
@@ -224,7 +225,7 @@ async def roulette(interaction: Interaction, choices: str):
                 description=f"with a chance of {percent}%",
                 color=interaction.user.color or Color.random()
             ).set_image(url=img_url)
-            view = None
+            view = View()
             if len([s for s in opt if ' (episode ' not in s.lower()]) == 0 :#if all options have (episode 
                 match = re.search(r'\(episode (\d+)\)', opt[choosen].lower())
                 epi = str(match.group(1)).zfill(2) if match else ""
