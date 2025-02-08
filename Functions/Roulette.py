@@ -178,8 +178,10 @@ class StringInputView(ui.View):
                 if chosen_index is not None:
                     episodes[chosen_index] += 1
                     self.data[selected_type]["episodes"] = episodes
-                    self.data[selected_type]['options']=", ".join([
-                        f"{option.split('|')[0]}|1" if index == chosen_index else f"{option.split('|')[0]}|{int(option.split('|')[1]) + 1}" 
+                    self.data[selected_type]['options'] = ", ".join([
+                        f"{option.split('|')[0]}|1" if index == chosen_index else 
+                        f"{option.split('|')[0]}|{int(option.split('|')[1]) + 1}" if int(option.split('|')[1]) > 0 else 
+                        f"{option.split('|')[0]}|0"
                         for index, option in enumerate(options)
                     ])
                     json_write(self.data, self.file_path)
@@ -282,7 +284,7 @@ def multiple_list(lst: list) -> list:
             amount = int(parts[1].strip())
             if amount > 0:
                 expand_list.extend([value] * amount)  # Duplicate `value` `amount` times
-                continue
+            continue
         
         # If no valid multiplier, just append the original item
         expand_list.append(value)
