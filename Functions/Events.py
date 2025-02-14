@@ -7,15 +7,29 @@ from datetime import datetime
 from Functions.LogsJson import json_read,json_write,logger
 
 
-async def event_loop(bot,channel:int):
+sleep_event = asyncio.Event()
+
+async def event_loop(bot, channel: int):
     while True:
-        next_sec= next_event_delta()
+        next_sec = next_event_delta()
         days, hours = convert_seconds(next_sec)
         logger.info(f"Next event in {next_sec} seconds ({days} days and {hours} hours)")
-        await asyncio.sleep(next_sec)
+
+        # Wait for the next event time, but allow interruption
+        try:
+            await asyncio.wait_for(sleep_event.wait(), timeout=next_sec)
+        except asyncio.TimeoutError:
+            pass  # Normal wake-up from timeout
+        finally:
+            sleep_event.clear()  # Reset event for the next cycle
+
         embed = await event_update()
         if embed:
             await bot.get_channel(channel).send(embed=embed)
+
+def wake_event_loop():
+    """Call this function whenever a new event is added to update the loop."""
+    sleep_event.set()
 
 
 class BirthdayModal(ui.Modal):
@@ -280,11 +294,12 @@ def bDay_haiku():
                   'Have a great birthday\nThis dude freaking rocks a lot\nEnjoy your day today!']
     return Haiku_list[random.randint(0, len(Haiku_list) - 1)]
 
-def next_event_delta()->int:
-    '''returns the seconds untill the closest snooze. returns None if there are no events'''
+def next_event_delta() -> int:
+    '''Returns the seconds until the closest snooze. 
+       Returns 0 if an event is overdue, and a large number if there are no events.'''
     data = json_read("Events")
     if len(data) == 0:
-        return None
+        return 86400 * 365  # 1 year in seconds
     
     min_time = None
     current_time = int(time.time())
@@ -298,12 +313,15 @@ def next_event_delta()->int:
                 less_time = 86400
             case 'hour':
                 less_time = 3600
+
         delta = (entry['time'] - less_time - current_time)
+
         if min_time is None or (min_time > delta and entry['snooze'] != 'past'):
             min_time = delta
-    return min_time if min_time and min_time > 0 else None
 
-def convert_seconds(seconds):
+    return max(min_time, 0) if min_time is not None else 86400 * 365
+
+def convert_seconds(seconds:int):
     days = seconds // 86400  # 1 day = 86400 seconds
     hours = (seconds % 86400) // 3600  # 1 hour = 3600 seconds
     return days, hours

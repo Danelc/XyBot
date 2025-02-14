@@ -1,10 +1,10 @@
 import asyncio
 import nextcord
-from nextcord.ext import commands
+
 from datetime import datetime, timedelta, time
 
 from Functions.LogsJson import json_read,json_write,logger
-
+from Functions.Events import wake_event_loop
 data_file= "Schedule"
 # Days of the week
 days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
@@ -282,3 +282,5 @@ def add_poll_event(title: str, time: int, desc: str, mentions: list[int]):
     data.append(new_event)
     json_write(data, "Events")
     logger.info(f"Added new poll event: {new_event}")
+    wake_event_loop()  # Wake up the event loop to process the new event
+    logger.info("poll added, event loop woken up")
