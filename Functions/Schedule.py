@@ -251,7 +251,7 @@ async def schedule_poll(channel, title, mentions, schedule, skipped_users, max_s
 
     
     # Check if all reaction counts are zero (or just 1, which is the bot's own reaction)
-    if all(count <= 1 for count in reactions.values()):
+    if all(count == 0 for count in reactions.values()):
         await channel.send(f"❌ **Poll Results for {title}**\nNo votes were received.")
     else:
         most_voted = max(reactions, key=reactions.get)

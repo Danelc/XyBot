@@ -377,6 +377,7 @@ async def on_voice_state_update(member: nextcord.Member, before: nextcord.VoiceS
         else:
             logger.info("No current track to stop.")
         await player.stop()
+        await player.disconnect()
 
     def get_track_owner(current_track):
         if not current_track:
