@@ -397,6 +397,7 @@ async def on_voice_state_update(member: nextcord.Member, before: nextcord.VoiceS
         await asyncio.sleep(delay)
         if await should_stop_leave_sound(channel, member_id):
             await stop_and_handle_queue(player)
+            return
 
     if after.channel:
         player: MyPlayer = after.channel.guild.voice_client
@@ -415,6 +416,7 @@ async def on_voice_state_update(member: nextcord.Member, before: nextcord.VoiceS
                (member == bot.user and current_track_owner and 
                 current_track_owner in after.channel.voice_states):
                 await stop_and_handle_queue(player)
+                return
     
     if member.id in leave_users_links:
         if before.channel and (not after.channel or after.afk) and len(before.channel.voice_states) > 0:
