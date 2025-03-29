@@ -434,7 +434,9 @@ async def play(interaction: Interaction, *, query: str,bot):
     try:
         results = await player.fetch_tracks(query)
     except Exception as e:
-        return await interaction.followup.send(f"Error loading track: {str(e)}", ephemeral=True)
+        await interaction.followup.send(f"Error loading track: {str(e)}", ephemeral=True)
+        await player.disconnect()
+        return
 
     if not results:
         return await interaction.followup.send("No results found.", ephemeral=True)

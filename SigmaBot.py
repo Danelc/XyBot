@@ -445,9 +445,12 @@ async def on_voice_state_update(member: nextcord.Member, before: nextcord.VoiceS
                             start_time=leave_users_links[member.id]["start"],
                             end_time=leave_users_links[member.id]["end"] if leave_users_links[member.id]["end"] != 0 else None
                         )
-                        
+                    
                         # Schedule a delayed check
                         asyncio.create_task(delayed_presence_check(player, before.channel, member.id))
+                    else:
+                        logger.warning(f"Failed to fetch tracks for {leave_users_links[member.id]['url']}")
+                        await player.disconnect()    
 @bot.event
 async def on_application_command_error(inter: Interaction[Bot], error: Exception):
     if isinstance(error, nextcord.errors.ApplicationCheckFailure):

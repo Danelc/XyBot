@@ -196,6 +196,7 @@ class StringInputView(ui.View):
                 await interaction.followup.send("Couldn't determine the roulette result.", ephemeral=True)
 
         except Exception as e:
+            logger.exception("An error occurred while running the roulette.")
             await interaction.followup.send(f"An error occurred while running the roulette: {str(e)}", ephemeral=True)
 
 #region commands
