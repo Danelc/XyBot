@@ -431,7 +431,11 @@ async def on_voice_state_update(member: nextcord.Member, before: nextcord.VoiceS
                 
                 player: MyPlayer = before.channel.guild.voice_client
                 if not player or not player.current:
-                    tracks = await player.fetch_tracks(leave_users_links[member.id]["url"])
+                    try:
+                        tracks = await player.fetch_tracks(leave_users_links[member.id]["url"])
+                    except Exception as e:
+                        logger.error(f"Error fetching tracks: {e}")
+                        tracks = None
                     if tracks:
                         if not player:
                             await before.channel.connect(cls=MyPlayer)
