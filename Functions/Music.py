@@ -350,34 +350,49 @@ async def queue(inter: Interaction):
     view.message = await inter.original_message()
 
 async def direct_play(
-    inter: Interaction, 
-    query: str, 
+    inter: Interaction,
+    query: str,
     bot,
-    start: str = SlashOption(description="Start time formated as HH:MM:SS", required=False, default=None),
-    end: str = SlashOption(description="End time formated as HH:MM:SS", required=False, default=None)
-    
+    channel: nextcord.VoiceChannel = SlashOption(
+        description="What channel to connect to",
+        channel_types=[nextcord.ChannelType.voice],
+        required=False,
+        default=None,
+    ),
+    start: str = SlashOption(
+        description="Start time formatted as HH:MM:SS", required=False, default=None
+    ),
+    end: str = SlashOption(
+        description="End time formatted as HH:MM:SS", required=False, default=None
+    )
 ):
     """Play a song with optional start and end times.
 
     Parameters
     ----------
-    inter : Interaction[Bot]
+    inter : Interaction
         The interaction object
     query : str
         The song to search or play
-    start : int, optional
-        Start time in seconds, by default 0
-    end : int, optional
-        End time in seconds, by default 0 (play until the end)
+    bot : commands.Bot
+        The bot instance
+    channel : nextcord.VoiceChannel, optional
+        The voice channel to connect to. If None, the join command
+        will attempt to use the author's current voice channel.
+    start : str, optional
+        Start time formatted as HH:MM:SS, by default None
+    end : str, optional
+        End time formatted as HH:MM:SS, by default None (play until the end)
     """
     assert inter.guild is not None
 
     if not inter.guild.voice_client:
-        await join(inter,None)
+        await join(inter, channel)
 
     player: MyPlayer = inter.guild.voice_client  # pyright: ignore[reportGeneralTypeIssues]
-    if player == None:
-        return 
+    if player is None:
+        return
+
     tracks = await player.fetch_tracks(query)
 
     if not tracks:
@@ -416,6 +431,38 @@ async def direct_play(
     await inter.send(response)
 
 async def play(interaction: Interaction, *, query: str,bot):
+    """Search for and play a song or playlist from YouTube.
+
+    This command searches YouTube for the given query and presents the top
+    results (or playlist tracks) in an interactive menu. The user can then
+    choose which track(s) to play. If the bot is not already in a voice channel,
+    it will attempt to join the channel of the user who invoked the command.
+
+    Parameters
+    ----------
+    interaction : Interaction
+        The interaction object representing the command invocation.
+    query : str
+        The search term to look up on YouTube (can be a song name, keywords, or URL).
+    bot : commands.Bot
+        The bot instance, used for managing playback and updating presence.
+
+    Behavior
+    --------
+    - If the user is not in a voice channel and the bot is not connected, the
+      command will fail with an error message.
+    - If the query resolves to a playlist, the user can enqueue all tracks or
+      select a specific one.
+    - If the query resolves to individual tracks, the top 5 results are shown.
+    - If music is already playing, the selected track(s) are queued.
+    - If nothing is playing, the selected track begins immediately.
+
+    Notes
+    -----
+    - Results are displayed in an ephemeral embed with interactive buttons.
+    - If the selection times out, the search is cancelled.
+    - The bot updates its Discord presence to "Listening to <track>" when playing.
+    """
     assert interaction.guild is not None
 
     if not interaction.guild.voice_client:
@@ -434,11 +481,14 @@ async def play(interaction: Interaction, *, query: str,bot):
     try:
         results = await player.fetch_tracks(query)
     except Exception as e:
-        await interaction.followup.send(f"Error loading track: {str(e)}", ephemeral=True)
         await player.disconnect()
+        await interaction.followup.send(f"Error loading track: {str(e)}", ephemeral=True)
+        logger.error(f"Error loading track: {str(e)}")
         return
 
     if not results:
+        await player.disconnect()
+        logger.info(f"No results found for query: {query}")
         return await interaction.followup.send("No results found.", ephemeral=True)
 
     # results = results if isinstance(results, list) else results.tracks
